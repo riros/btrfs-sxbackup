@@ -109,7 +109,7 @@ class Subvolume(object):
     @staticmethod
     def parse(btrfs_sub_list_line):
         """
-        :param btrfs_sub_list_line: Output line of btrfs sub list
+        :param btrfs_sub_list_line: Output line of btrfs subvolume list
         :return: Subvolume instance
         :rtype: Subvolume
         """

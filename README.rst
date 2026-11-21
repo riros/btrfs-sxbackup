@@ -23,7 +23,7 @@ The following packages have to be available on both source and destination
 
 The system executing btrfs-backup requires
 
-* python3
+* python3 (version 3.8 or later)
 
 Optional
 --------
@@ -103,10 +103,10 @@ Synopsis and options
 .. code ::
 
     usage: btrfs-sxbackup [-h] [-q] [--version] [-v]
-                          {init,destroy,update,run,info,transfer} ...
+                          {init,destroy,update,run,info,purge,transfer} ...
 
     positional arguments:
-      {init,destroy,update,run,info,transfer}
+      {init,destroy,update,run,info,purge,transfer}
         init                initialize backup job
         destroy             destroy backup job
         update              update backup job
@@ -115,7 +115,7 @@ Synopsis and options
         purge               purge backups according to retention expressions
         transfer            transfer snapshot
 
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       -q, --quiet           do not log to stdout
       --version             show program's version number and exit
@@ -128,7 +128,7 @@ init
 
     usage: btrfs-sxbackup init [-h] [-sr SOURCE_RETENTION]
                                [-dr DESTINATION_RETENTION] [-c]
-                               source-subvolume destination-subvolume
+                               source-subvolume [destination-subvolume]
 
     positional arguments:
       source-subvolume      source subvolume to backup. local path or ssh url
@@ -136,7 +136,7 @@ init
                             destination subvolume receiving backup snapshots.
                             local path or ssh url
 
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       -sr SOURCE_RETENTION, --source-retention SOURCE_RETENTION
                             expression defining which source snapshots to
@@ -165,9 +165,9 @@ run
       subvolume             backup job source or destination subvolume. local path
                             or SSH url
 
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
-      -m [MAIL], --mail [MAIL]
+      -m, --mail [MAIL]
                             enables email notifications. If an email address is
                             given, it overrides the default email-recipient
                             setting in /etc/btrfs-sxbackup.conf
@@ -181,14 +181,14 @@ update
 .. code ::
 
     usage: btrfs-sxbackup update [-h] [-sr SOURCE_RETENTION]
-                                 [-dr DESTINATION_RETENTION] [-c]
+                                 [-dr DESTINATION_RETENTION] [-c] [-nc]
                                  subvolume [subvolume ...]
 
     positional arguments:
       subvolume             backup job source or destination subvolume. local path
                             or SSH url
 
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       -sr SOURCE_RETENTION, --source-retention SOURCE_RETENTION
                             expression defining which source snapshots to
@@ -217,7 +217,7 @@ info
       subvolume   backup job source or destination subvolume. local path or SSH
                   url
 
-    optional arguments:
+    options:
       -h, --help  show this help message and exit
 
 purge
@@ -233,7 +233,7 @@ purge
       subvolume             backup job source or destination subvolume. local path
                             or SSH url
 
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       -sr SOURCE_RETENTION, --source-retention SOURCE_RETENTION
                             Optionally override expression defining which source
@@ -259,7 +259,7 @@ destroy
       subvolume   backup job source or destination subvolume. local path or SSH
                   url
 
-    optional arguments:
+    options:
       -h, --help  show this help message and exit
       --purge     removes all backup snapshots from source and destination
 
@@ -276,7 +276,7 @@ transfer
       destination-subvolume
                             destination subvolume. local path or ssh url
 
-    optional arguments:
+    options:
       -h, --help            show this help message and exit
       -c, --compress        enables compression during transmission. Requires lzop
                             to be installed on both source and destination

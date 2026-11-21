@@ -1,4 +1,4 @@
-#!/usr/bin/python3.4
+#!/usr/bin/env python3
 
 # Copyright (c) 2014 Marco Schindler
 #
@@ -13,8 +13,19 @@ import os
 import shutil
 from setuptools import setup
 from setuptools.command.sdist import sdist
+import re
 
-from btrfs_sxbackup import __version__
+
+def _get_version() -> str:
+    init_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'btrfs_sxbackup', '__init__.py')
+    with open(init_path, 'r') as f:
+        match = re.search(r"__version__\s*=\s*'([^']+)'", f.read())
+        if not match:
+            raise RuntimeError('Unable to find version string in btrfs_sxbackup/__init__.py')
+        return match.group(1)
+
+
+__version__ = _get_version()
 
 
 DOC_MAN_PATH = './docs/man'
@@ -54,14 +65,14 @@ class CustomSdist(sdist):
         sdist.run(self)
 
 
-if sys.version_info.major < 3:
-    print('btrfs-sxbackup requires python v3.x')
+if sys.version_info < (3, 8):
+    print('btrfs-sxbackup requires python v3.8 or later')
     sys.exit(1)
 
 setup(
     name='btrfs-sxbackup',
     version=__version__,
-    author='Marco Schindler',
+    author='Marco Schindler, Flint AI',
     author_email='masc@disappear.de',
     license='GNU GPL',
     url='https://github.com/masc3d/btrfs-sxbackup',
@@ -69,7 +80,11 @@ setup(
     description='Incremental btrfs snapshot backups with push/pull support via SSH',
     long_description=open('README.rst').read(),
     data_files=[("man/man1/", glob.glob(os.path.join(DOC_MAN_PATH, '*.1')))],
-    install_requires=['sphinx'],
+    install_requires=[],
+    extras_require={
+        'docs': ['sphinx', 'sphinxcontrib-autoprogram', 'jinja2'],
+    },
+    python_requires='>=3.8',
     classifiers=[
         'Environment :: Console',
         'Intended Audience :: End Users/Desktop',

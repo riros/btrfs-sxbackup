@@ -6,3 +6,4 @@ dist
 build
 docs/man
 docs/sphinx/generated
+venv

@@ -1,3 +1,6 @@
-include *.md
+include LICENSE
+include README.rst
+include CHANGELOG.rst
 recursive-include btrfs_sxbackup *.py
-
+recursive-include btrfs_sxbackup_setup *.py
+recursive-include etc *.conf

@@ -5,17 +5,15 @@
 # Software Foundation; either version 2 of the License, or (at your option)
 # any later version.
 
-import collections
 import logging
 import subprocess
 import time
 import uuid
 import io
 import os
-import distutils.util
 from configparser import ConfigParser
 from uuid import UUID
-from urllib import parse
+import urllib.parse
 
 from btrfs_sxbackup.entities import Snapshot
 from btrfs_sxbackup.entities import SnapshotName
@@ -26,6 +24,16 @@ from btrfs_sxbackup.entities import Subvolume
 
 
 _logger = logging.getLogger(__name__)
+
+
+def _str_to_bool(value) -> bool:
+    """
+    Convert a string representation of truth into a boolean.
+    Replaces the deprecated distutils.util.strtobool implementation.
+    """
+    return str(value).strip().lower() in ('y', 'yes', 't', 'true', 'on', '1')
+
+
 _DEFAULT_RETENTION_SOURCE = RetentionExpression('3')
 _DEFAULT_RETENTION_DESTINATION = RetentionExpression('2d: 1/d, 2w:3/w, 1m:1/w, 2m:none')
 _DEFAULT_CONTAINER_RELPATH = '.sxbackup'
@@ -140,7 +148,7 @@ class Location:
         self.__logger.info(self._format_log_msg(msg))
 
     def _log_warn(self, msg):
-        self.__logger.warn(self._format_log_msg(msg))
+        self.__logger.warning(self._format_log_msg(msg))
 
     def _log_error(self, msg):
         self.__logger.error(self._format_log_msg(msg))
@@ -210,7 +218,7 @@ class Location:
     def remove_btrfs_subvolume(self, subvolume_path):
         subvolume_path = self.build_path(subvolume_path)
         self._log_info('removing subvolume [%s]' % subvolume_path)
-        self.exec_check_output('if [ -d "%s" ]; then btrfs sub del "%s"; fi' % (subvolume_path, subvolume_path))
+        self.exec_check_output('if [ -d "%s" ]; then btrfs subvolume delete "%s"; fi' % (subvolume_path, subvolume_path))
 
     def create_btrfs_snapshot(self, source_path, dest_path, set_ro=True):
         source_path = self.build_path(source_path)
@@ -218,7 +226,7 @@ class Location:
 
         # Create new temporary snapshot (source)
         self._log_info('creating snapshot')
-        self.exec_check_output('btrfs sub snap "%s" "%s" && sync'
+        self.exec_check_output('btrfs subvolume snapshot "%s" "%s" && sync'
                                % (source_path, dest_path))
 
         # Touch source volume root, updating its mtime
@@ -469,16 +477,16 @@ class JobLocation(Location):
         """ Prepare location environment """
 
         # Create container subvolume if it does not exist
-        self.exec_check_output('if [ ! -d "%s" ]; then btrfs sub create "%s"; fi' % (
+        self.exec_check_output('if [ ! -d "%s" ]; then btrfs subvolume create "%s"; fi' % (
             self.container_subvolume_path, self.container_subvolume_path))
 
         # Check if path is actually a subvolume
-        self.exec_check_output('btrfs sub show "%s"' % self.container_subvolume_path)
+        self.exec_check_output('btrfs subvolume show "%s"' % self.container_subvolume_path)
 
         # Check and remove temporary snapshot volume (possible leftover of previously interrupted backup)
         temp_subvolume_path = os.path.join(self.container_subvolume_path, self.__TEMP_BASENAME)
         self.exec_check_output(
-            'if [ -d "%s"* ]; then btrfs sub del "%s"*; fi' % (temp_subvolume_path, temp_subvolume_path))
+            'if [ -d "%s"* ]; then btrfs subvolume delete "%s"*; fi' % (temp_subvolume_path, temp_subvolume_path))
 
     def retrieve_snapshots(self):
         """ Determine snapshot names. Snapshot names are sorted in reverse order (newest first).
@@ -486,7 +494,7 @@ class JobLocation(Location):
 
         self._log_info('retrieving snapshots')
 
-        output = self.exec_check_output('btrfs sub list -o "%s"' % self.container_subvolume_path)
+        output = self.exec_check_output('btrfs subvolume list -o "%s"' % self.container_subvolume_path)
 
         # output is delivered as a byte sequence, decode to unicode string and split lines
         lines = output.decode().splitlines()
@@ -535,7 +543,7 @@ class JobLocation(Location):
         if not snapshots or len(snapshots) == 0:
             return
 
-        cmd = 'cd "%s" && btrfs sub del %s' % (self.container_subvolume_path,
+        cmd = 'cd "%s" && btrfs subvolume delete %s' % (self.container_subvolume_path,
                                                ' '.join(map(lambda x: '"%s"' % x, snapshots)))
 
         self.exec_check_output(cmd)
@@ -717,21 +725,19 @@ class JobLocation(Location):
 
         # Convert to instances where applicable
         location_uuid = UUID(location_uuid) if location_uuid else None
-        source = parse.urlsplit(source) if source else None
+        source = urllib.parse.urlsplit(source) if source else None
         source_container = source_container if source_container else None
-        destination = parse.urlsplit(destination) if destination else None
+        destination = urllib.parse.urlsplit(destination) if destination else None
         retention = RetentionExpression(retention) if retention else None
-        compress = True if distutils.util.strtobool(parser.get(section, self.__KEY_COMPRESS, fallback='False')) \
-            else False
-        identical_filesystem = True if distutils.util.strtobool(parser.get(section, self.__KEY_IDENT_FS, fallback='False')) \
-            else False
+        compress = _str_to_bool(parser.get(section, self.__KEY_COMPRESS, fallback='False'))
+        identical_filesystem = _str_to_bool(parser.get(section, self.__KEY_IDENT_FS, fallback='False'))
 
         if location_type == JobLocation.TYPE_SOURCE:
             # Amend url/container relpath from current path for source locations
             # if container relative path was not provided
             if not self.container_subvolume_relpath:
                 source_container = os.path.basename(self.container_subvolume_path.rstrip(os.path.sep))
-                source = parse.SplitResult(scheme=self.url.scheme,
+                source = urllib.parse.SplitResult(scheme=self.url.scheme,
                                            netloc=self.url.netloc,
                                            path=os.path.abspath(os.path.join(self.url.path, os.path.pardir)),
                                            query=self.url.query,
@@ -786,8 +792,8 @@ class Job:
         return self.__dest
 
     @staticmethod
-    def init(source_url: parse.SplitResult,
-             dest_url: parse.SplitResult,
+    def init(source_url: urllib.parse.SplitResult,
+             dest_url: urllib.parse.SplitResult,
              source_retention: RetentionExpression = None,
              dest_retention: RetentionExpression = None,
              compress: bool = None,
@@ -874,7 +880,7 @@ class Job:
         return Job(source, dest)
 
     @staticmethod
-    def load(url: parse.SplitResult, raise_errors: bool = True) -> 'Job':
+    def load(url: urllib.parse.SplitResult, raise_errors: bool = True) -> 'Job':
         """
         Loads a backup job from an existing backup location (source or destination)
         :param url: Location URL
@@ -982,7 +988,6 @@ class Job:
 
     def run(self):
         """ Performs backup run """
-        starting_time = time.monotonic()
 
         _logger.info(self.source)
         if self.destination:
@@ -1018,14 +1023,14 @@ class Job:
             if self.destination is not None:
                 if len(self.destination.snapshots) > 0:
                     if self.source.snapshots[0].name.timestamp != self.destination.snapshots[0].name.timestamp:
-                        _logger.warn(
+                        _logger.warning(
                             ('Latest timestamps of source [%s] and destination [%s] do not match. A full snapshot will '
                              'be transferred')
                             % (self.source.snapshots[0].name.timestamp, self.destination.snapshots[0].name.timestamp))
                     else:
                         incremental = True
                 else:
-                    _logger.warn('Destination has no snapshots, a full snapshot will be transferred')
+                    _logger.warning('Destination has no snapshots, a full snapshot will be transferred')
 
             else:
                 incremental = True
@@ -1044,7 +1049,7 @@ class Job:
                 l()
             except Exception as e:
                 _logger.error(str(e))
-                _logger.warn(warn_msg)
+                _logger.warning(warn_msg)
 
         temp_dest_path = None
         final_dest_path = None
@@ -1102,7 +1107,7 @@ class Job:
 
         _logger.info('backup %s created successfully in %s'
                      % (new_snapshot_name,
-                        time.strftime("%H:%M:%S", time.gmtime(time.monotonic() - starting_time))))
+                        time.strftime('%H:%M:%S', time.gmtime())))
 
     def destroy(self, purge=False):
         """
@@ -1134,7 +1139,7 @@ class Job:
         if (src and src.location_type) or (dst and dst.location_type):
             t_inset = 3
             t_na = 'n/a'
-            i = collections.OrderedDict()
+            i = dict()
             i['UUID'] = src.uuid if src else dst.uuid if dst else t_na
             i['Compress'] = str(src.compress) if src else dst.compress if dst else t_na
             i['Source URL'] = src.url.geturl().rstrip(os.path.sep) if src else t_na

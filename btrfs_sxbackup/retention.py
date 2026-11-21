@@ -5,7 +5,6 @@
 # Software Foundation; either version 2 of the License, or (at your option)
 # any later version.
 
-import collections
 import logging
 import math
 import re
@@ -358,7 +357,7 @@ class RetentionExpression:
         items = sorted(items, key=lambda_timestamp, reverse=True)
 
         items_to_retain = list()
-        items_to_remove_by_condition = collections.OrderedDict()
+        items_to_remove_by_condition = dict()
 
         now = datetime.now(timezone.utc)
         conditions = self.__create_applicable_conditions(now)

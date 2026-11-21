@@ -1,6 +1,18 @@
 Changelog
 =========
 
+0.6.13
+------
+
+* UPDATED documentation to match current CLI help output (argparse section header
+  'options', added 'purge' command to synopsis, optional destination subvolume for
+  'init', '--no-compress' flag for 'update')
+* MIGRATED runtime to Python 3.8 or later (replaced deprecated distutils based
+  boolean parsing)
+* MIGRATED btrfs-progs invocations to canonical 'btrfs subvolume' subcommands
+* MIGRATED packaging to pyproject/setuptools build backend and docs extras
+* FIXED timestamp generation in backup run log message
+
 0.6.11
 ------
 * btrfs send/receive should run with idle io prio
